@@ -17,18 +17,14 @@
 package eth
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/streadway/amqp"
 )
 
 // handleGetBlockHeaders handles Block header query, collect the requested headers and reply
@@ -281,32 +277,29 @@ func answerGetReceiptsQuery(backend Backend, query GetReceiptsPacket, peer *Peer
 func handleNewBlockhashes(backend Backend, msg Decoder, peer *Peer) error {
 	// A batch of new block announcements just arrived
 	ann := new(NewBlockHashesPacket)
-	day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
 	if err := msg.Decode(ann); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
 	// Mark the hashes as present at the remote node
 	for _, block := range *ann {
 
-		// lxy add 0831
-		File,err:=os.OpenFile(day+"block.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-
-		if err!=nil{
-			log.Info("The csv file open error")
-		}
-		defer File.Close()
-
-		//创建写入接口
-		WriterCsv :=csv.NewWriter(File)
-		line := []string{
-			time.Now().String(),
-			strconv.FormatUint(block.Number, 10),
-			peer.RemoteAddr().String(),
-		}
-		WriterCsv.Write(line)
-		WriterCsv.Flush() //刷新，不刷新是无法写入的
-		peer.markBlock(block.Hash)
-
+		//// lxy add 0831
+		//File,err:=os.OpenFile(day+"block.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
+		//
+		//if err!=nil{
+		//	log.Info("The csv file open error")
+		//}
+		//defer File.Close()
+		//
+		////创建写入接口
+		//WriterCsv :=csv.NewWriter(File)
+		//line := []string{
+		//	time.Now().String(),
+		//	strconv.FormatUint(block.Number, 10),
+		//	peer.RemoteAddr().String(),
+		//}
+		//WriterCsv.Write(line)
+		//WriterCsv.Flush()
 
 		peer.markBlock(block.Hash)
 	}
@@ -432,27 +425,52 @@ func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) 
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
 	// Schedule all the unknown hashes for retrieval
-	day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
+
+	// lxy add 20210913 :connect to the mq
+	conn,err :=amqp.Dial("amqp://admin:admin@localhost:5672/")
+	if err != nil {
+		log.Info("Connect to the Mq error")
+	}
+	defer conn.Close()
+
+	// open a channel
+	ch,err :=conn.Channel()
+	if err != nil{
+		log.Info("Fail to open a channel")
+	}
+	defer  ch.Close()
+
+   //declare a queue
+	q,err := ch.QueueDeclare(
+		"eth",
+		true,
+		false,
+		false,
+		false,
+		nil,
+
+	)
+
 
 	for _, hash := range *ann {
-		File,err:=os.OpenFile(day+"NewPool.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-		if err!=nil{
-			log.Info("The csv file open error")
+		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
+
+		err = ch.Publish(
+			"",
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:   []byte(hash.String()),
+			})
+		if err != nil{
+			log.Info("send data error!",err)
 		}
-		defer File.Close()
-		//创建写入接口
-		WriterCsv :=csv.NewWriter(File)
-		line := []string{
-			hash.String(),
-			msg.Time().String(),
-			peer.RemoteAddr().String(),
-		}
-		WriterCsv.Write(line)
-		WriterCsv.Flush() //刷新，不刷新是无法写入的
 
 		peer.markTransaction(hash)
 	}
-	return backend.Handle(peer, ann)
+	return backend.Handle(peer,ann)
 }
 
 func handleGetPooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
@@ -510,7 +528,6 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
 	var txs TransactionsPacket
-	day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
@@ -519,21 +536,6 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 		if tx == nil {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
-		File,err:=os.OpenFile(day+"tx.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-		if err!=nil{
-			log.Info("The csv file open error")
-		}
-		defer File.Close()
-
-		//创建写入接口
-		WriterCsv :=csv.NewWriter(File)
-		line := []string{
-			tx.Hash().String(),
-			msg.Time().String(),
-			peer.RemoteAddr().String(),
-		}
-		WriterCsv.Write(line)
-		WriterCsv.Flush() //刷新，不刷新是无法写入的
 
 		peer.markTransaction(tx.Hash())
 	}
@@ -547,7 +549,6 @@ func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
 	var txs PooledTransactionsPacket
-	day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
@@ -557,22 +558,21 @@ func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
 
-		File,err:=os.OpenFile(day+"PooledTxs.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
+		//File,err:=os.OpenFile(day+"PooledTxs.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
+		//
+		//if err!=nil{
+		//	log.Info("The csv file open error")
+		//}
+		//defer File.Close()
 
-		if err!=nil{
-			log.Info("The csv file open error")
-		}
-		defer File.Close()
-
-		//创建写入接口
-		WriterCsv :=csv.NewWriter(File)
-		line := []string{
-			tx.Hash().String(),
-			msg.Time().String(),
-			peer.RemoteAddr().String(),
-		}
-		WriterCsv.Write(line)
-		WriterCsv.Flush() //刷新，不刷新是无法写入的
+		//WriterCsv :=csv.NewWriter(File)
+		//line := []string{
+		//	tx.Hash().String(),
+		//	msg.Time().String(),
+		//	peer.RemoteAddr().String(),
+		//}
+		//WriterCsv.Write(line)
+		//WriterCsv.Flush()
 
 		peer.markTransaction(tx.Hash())
 	}
@@ -586,7 +586,6 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
 	var txs PooledTransactionsPacket66
-	day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
@@ -595,25 +594,6 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 		if tx == nil {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
-
-		File,err:=os.OpenFile(day+"Pool66Tx.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-
-
-		if err!=nil{
-			log.Info("The csv file open error")
-		}
-		defer File.Close()
-
-		//创建写入接口
-		WriterCsv :=csv.NewWriter(File)
-		line := []string{
-			tx.Hash().String(),
-			msg.Time().String(),
-			peer.RemoteAddr().String(),
-		}
-		WriterCsv.Write(line)
-		WriterCsv.Flush() //刷新，不刷新是无法写入的
-
 
 		peer.markTransaction(tx.Hash())
 	}

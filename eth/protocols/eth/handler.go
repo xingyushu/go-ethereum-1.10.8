@@ -212,6 +212,8 @@ var eth66 = map[uint64]msgHandler{
 func handleMessage(backend Backend, peer *Peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := peer.rw.ReadMsg()
+
+	// check the peer connection status
 	if err != nil {
 		peer.Peer.Disconnect(p2p.DiscUselessPeer)
 		return err
@@ -227,7 +229,6 @@ func handleMessage(backend Backend, peer *Peer) error {
 	//
 	//defer File.Close()
 	//
-	////创建写入接口
 	//WriterCsv :=csv.NewWriter(File)
 	//line := []string{
 	//	msg.Time().String(),
@@ -235,11 +236,7 @@ func handleMessage(backend Backend, peer *Peer) error {
 	//	peer.RemoteAddr().String(),
 	//}
 	//WriterCsv.Write(line)
-	//WriterCsv.Flush() //刷新，不刷新是无法写入的
-
-
-
-
+	//WriterCsv.Flush()
 
 
 	if msg.Size > maxMessageSize {
