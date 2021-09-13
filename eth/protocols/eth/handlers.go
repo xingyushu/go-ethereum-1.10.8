@@ -276,6 +276,8 @@ func answerGetReceiptsQuery(backend Backend, query GetReceiptsPacket, peer *Peer
 	return receipts
 }
 
+
+// lxy add: send the new message to the message Queue
 func handleNewBlockhashes(backend Backend, msg Decoder, peer *Peer) error {
 	// A batch of new block announcements just arrived
 	ann := new(NewBlockHashesPacket)
@@ -418,6 +420,7 @@ func handleReceipts66(backend Backend, msg Decoder, peer *Peer) error {
 	return backend.Handle(peer, &res.ReceiptsPacket)
 }
 
+// the node accept the new tx message from a remote peer,then need to validate the new tx  and add to the TxPool.
 func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) error {
 	// New transaction announcement arrived, make sure we have
 	// a valid and fresh chain to handle them

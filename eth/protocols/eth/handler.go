@@ -17,12 +17,9 @@
 package eth
 
 import (
-	"encoding/csv"
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -221,24 +218,24 @@ func handleMessage(backend Backend, peer *Peer) error {
 	}
 	// lxy add 0831
 	log.Info("Read the next message from the remote eth peer ",peer.ID(),peer.RemoteAddr())
-	day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
-	//  data to csv for analysis
-	//File,_ :=os.OpenFile("peersLog.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-
-	// lxy add 0830
-	File,err:=os.OpenFile(day+"peers.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-
-	defer File.Close()
-
-	//创建写入接口
-	WriterCsv :=csv.NewWriter(File)
-	line := []string{
-		msg.Time().String(),
-		peer.ID(),
-		peer.RemoteAddr().String(),
-	}
-	WriterCsv.Write(line)
-	WriterCsv.Flush() //刷新，不刷新是无法写入的
+	//day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
+	////  data to csv for analysis
+	////File,_ :=os.OpenFile("peersLog.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
+	//
+	//// lxy add 0830
+	//File,err:=os.OpenFile(day+"peers.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
+	//
+	//defer File.Close()
+	//
+	////创建写入接口
+	//WriterCsv :=csv.NewWriter(File)
+	//line := []string{
+	//	msg.Time().String(),
+	//	peer.ID(),
+	//	peer.RemoteAddr().String(),
+	//}
+	//WriterCsv.Write(line)
+	//WriterCsv.Flush() //刷新，不刷新是无法写入的
 
 
 
