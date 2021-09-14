@@ -18,7 +18,6 @@ package eth
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
 
@@ -219,7 +218,7 @@ func handleMessage(backend Backend, peer *Peer) error {
 		return err
 	}
 	// lxy add 0831
-	log.Info("Read the next message from the remote eth peer ",peer.ID(),peer.RemoteAddr())
+	//log.Info("Read the next message from the remote eth peer ",peer.ID(),peer.RemoteAddr())
 	//day := time.Now().Month().String()+strconv.Itoa(time.Now().Day())
 	////  data to csv for analysis
 	////File,_ :=os.OpenFile("peersLog.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)

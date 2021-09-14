@@ -19,6 +19,7 @@ package eth
 import (
 	"encoding/json"
 	"fmt"
+	//"github.com/consensys/gnark-crypto/hash"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -413,6 +414,10 @@ func handleReceipts66(backend Backend, msg Decoder, peer *Peer) error {
 	return backend.Handle(peer, &res.ReceiptsPacket)
 }
 
+
+
+
+
 // the node accept the new tx message from a remote peer,then need to validate the new tx  and add to the TxPool.
 func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) error {
 	// New transaction announcement arrived, make sure we have
@@ -426,47 +431,7 @@ func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) 
 	}
 	// Schedule all the unknown hashes for retrieval
 
-	// lxy add 20210913 :connect to the mq
-	conn,err :=amqp.Dial("amqp://admin:admin@localhost:5672/")
-	if err != nil {
-		log.Info("Connect to the Mq error")
-	}
-	defer conn.Close()
-
-	// open a channel
-	ch,err :=conn.Channel()
-	if err != nil{
-		log.Info("Fail to open a channel")
-	}
-	defer  ch.Close()
-
-   //declare a queue
-	q,err := ch.QueueDeclare(
-		"eth",
-		true,
-		false,
-		false,
-		false,
-		nil,
-
-	)
-
-
 	for _, hash := range *ann {
-		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
-
-		err = ch.Publish(
-			"",
-			q.Name,
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "text/plain",
-				Body:   []byte(hash.String()),
-			})
-		if err != nil{
-			log.Info("send data error!",err)
-		}
 
 		peer.markTransaction(hash)
 	}
@@ -531,11 +496,52 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
+
+	// lxy add 20210913 :connect to the mq
+	var conn,_ =amqp.Dial("amqp://admin:admin@localhost:5672/")
+	defer conn.Close()
+
+	// open a channel
+	ch,err :=conn.Channel()
+	if err != nil{
+		log.Info("Fail to open a channel")
+	}
+	defer  ch.Close()
+
+	//declare a queue
+	q,err := ch.QueueDeclare(
+		"eth",
+		true,
+		false,
+		false,
+		false,
+		nil,
+
+	)
+
 	for i, tx := range txs {
 		// Validate and mark the remote transaction
 		if tx == nil {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
+
+		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
+
+		err = ch.Publish(
+			"",
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:   []byte(tx.Hash().String()),
+			})
+		if err != nil{
+			log.Info("send data error!",err)
+		}
+
+
+
 
 		peer.markTransaction(tx.Hash())
 	}
@@ -552,27 +558,51 @@ func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
+
+	//lxy add : connect to the MQ
+	// lxy add 20210913 :connect to the mq
+	var conn,_ =amqp.Dial("amqp://admin:admin@localhost:5672/")
+	defer conn.Close()
+
+	// open a channel
+	ch,err :=conn.Channel()
+	if err != nil{
+		log.Info("Fail to open a channel")
+	}
+	defer  ch.Close()
+
+	//declare a queue
+	q,err := ch.QueueDeclare(
+		"eth",
+		true,
+		false,
+		false,
+		false,
+		nil,
+
+	)
+
+
 	for i, tx := range txs {
 		// Validate and mark the remote transaction
 		if tx == nil {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
 
-		//File,err:=os.OpenFile(day+"PooledTxs.csv",os.O_RDWR|os.O_APPEND|os.O_CREATE,0666)
-		//
-		//if err!=nil{
-		//	log.Info("The csv file open error")
-		//}
-		//defer File.Close()
+		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
 
-		//WriterCsv :=csv.NewWriter(File)
-		//line := []string{
-		//	tx.Hash().String(),
-		//	msg.Time().String(),
-		//	peer.RemoteAddr().String(),
-		//}
-		//WriterCsv.Write(line)
-		//WriterCsv.Flush()
+		err = ch.Publish(
+			"",
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:   []byte(tx.Hash().String()),
+			})
+		if err != nil{
+			log.Info("send data error!",err)
+		}
 
 		peer.markTransaction(tx.Hash())
 	}
@@ -589,10 +619,49 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
+
+	//lxy add : connect to the MQ
+	// lxy add 20210913 :connect to the mq
+	var conn,_ =amqp.Dial("amqp://admin:admin@localhost:5672/")
+	defer conn.Close()
+
+	// open a channel
+	ch,err :=conn.Channel()
+	if err != nil{
+		log.Info("Fail to open a channel")
+	}
+	defer  ch.Close()
+
+	//declare a queue
+	q,err := ch.QueueDeclare(
+		"eth",
+		true,
+		false,
+		false,
+		false,
+		nil,
+
+	)
+
 	for i, tx := range txs.PooledTransactionsPacket {
 		// Validate and mark the remote transaction
 		if tx == nil {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
+		}
+
+		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
+
+		err = ch.Publish(
+			"",
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:   []byte(tx.Hash().String()),
+			})
+		if err != nil{
+			log.Info("send data error!",err)
 		}
 
 		peer.markTransaction(tx.Hash())
