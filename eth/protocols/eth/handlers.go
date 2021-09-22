@@ -19,6 +19,8 @@ package eth
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	//"github.com/consensys/gnark-crypto/hash"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -486,6 +488,16 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsPac
 	return hashes, txs
 }
 
+
+//define a struct that we want to send to the Handler
+type NewMessage struct{
+	Hash string  `json:"hash"`
+	time time.Time  `json:"time"`
+	Source string   `json:"source"`
+}
+
+
+//the new tx  message 1  need to be addressed
 func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
 	if !backend.AcceptTxs() {
@@ -519,6 +531,7 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 
 	)
 
+
 	for i, tx := range txs {
 		// Validate and mark the remote transaction
 		if tx == nil {
@@ -527,6 +540,15 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 
 		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
 
+		message := &NewMessage{
+			tx.Hash().String(),
+			time.Now(),
+			"Alice",
+
+		}
+
+		data,err := json.Marshal(message)
+
 		err = ch.Publish(
 			"",
 			q.Name,
@@ -534,7 +556,7 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 			false,
 			amqp.Publishing{
 				ContentType: "text/plain",
-				Body:   []byte(tx.Hash().String()),
+				Body:   data,
 			})
 		if err != nil{
 			log.Info("send data error!",err)
@@ -548,6 +570,8 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	return backend.Handle(peer, &txs)
 }
 
+
+//the new tx  message 2  need to be addressed
 func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
 	if !backend.AcceptTxs() {
@@ -591,6 +615,16 @@ func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 
 		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
 
+		message := &NewMessage{
+			tx.Hash().String(),
+			time.Now(),
+			"Alice",
+
+		}
+
+		data,err := json.Marshal(message)
+
+
 		err = ch.Publish(
 			"",
 			q.Name,
@@ -598,7 +632,7 @@ func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 			false,
 			amqp.Publishing{
 				ContentType: "text/plain",
-				Body:   []byte(tx.Hash().String()),
+				Body:   data,
 			})
 		if err != nil{
 			log.Info("send data error!",err)
@@ -609,6 +643,8 @@ func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	return backend.Handle(peer, &txs)
 }
 
+
+//the new tx  message 3  need to be addressed
 func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
 	if !backend.AcceptTxs() {
@@ -651,6 +687,15 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 
 		// send the new transaction to the message queue,and consumed by the  handler(redis/bloom)
 
+		message := &NewMessage{
+			tx.Hash().String(),
+			time.Now(),
+			"Alice",
+
+		}
+
+		data,err := json.Marshal(message)
+
 		err = ch.Publish(
 			"",
 			q.Name,
@@ -658,7 +703,7 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 			false,
 			amqp.Publishing{
 				ContentType: "text/plain",
-				Body:   []byte(tx.Hash().String()),
+				Body:   data,
 			})
 		if err != nil{
 			log.Info("send data error!",err)
